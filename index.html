@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Shivling Darshan</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+        #loading {
+            position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            color: white; font-family: sans-serif; font-size: 1.2rem;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading 3D Experience...</div>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505); // Very dark background
+        scene.fog = new THREE.FogExp2(0x050505, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 5, 12);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below ground
+
+        // --- MATERIALS ---
+        
+        // 1. Black Stone (The Shivling) - High gloss/wet look
+        const shivlingMaterial = new THREE.MeshStandardMaterial({
+            color: 0x1a1a1a,
+            roughness: 0.1, // Very smooth/wet
+            metalness: 0.6,
+        });
+
+        // 2. Copper/Gold (The Pot)
+        const copperMaterial = new THREE.MeshStandardMaterial({
+            color: 0xb87333,
+            roughness: 0.3,
+            metalness: 0.8,
+        });
+
+        // 3. Water (Stream)
+        const waterMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            transmission: 0.9,
+            opacity: 0.8,
+            transparent: true,
+            roughness: 0,
+            ior: 1.33,
+        });
+
+        // 4. Glowing Ash (Tripundra)
+        const ashMaterial = new THREE.MeshStandardMaterial({
+            color: 0xeeeeee,
+            roughness: 1,
+            emissive: 0x222222,
+        });
+        const redDotMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff0000,
+            roughness: 0.5,
+            emissive: 0x550000,
+        });
+
+        // --- GEOMETRY CONSTRUCTION ---
+
+        // 1. The Lingam (Capsule shape)
+        const lingamGeo = new THREE.CapsuleGeometry(1.2, 2.5, 4, 16);
+        const lingam = new THREE.Mesh(lingamGeo, shivlingMaterial);
+        lingam.position.y = 1.5;
+        lingam.castShadow = true;
+        lingam.receiveShadow = true;
+        scene.add(lingam);
+
+        // 2. The Base (Peetham)
+        const baseGroup = new THREE.Group();
+        
+        // Main circular base
+        const baseGeo = new THREE.CylinderGeometry(2.5, 3, 1, 64);
+        const baseMesh = new THREE.Mesh(baseGeo, shivlingMaterial);
+        baseMesh.receiveShadow = true;
+        baseGroup.add(baseMesh);
+
+        // The Top Rim of the base
+        const rimGeo = new THREE.TorusGeometry(2.5, 0.4, 16, 100);
+        const rimMesh = new THREE.Mesh(rimGeo, shivlingMaterial);
+        rimMesh.rotation.x = -Math.PI / 2;
+        rimMesh.position.y = 0.5;
+        rimMesh.castShadow = true;
+        baseGroup.add(rimMesh);
+
+        // The Spout (Yoni part)
+        const spoutGeo = new THREE.CylinderGeometry(0.8, 0.8, 3, 32);
+        const spoutMesh = new THREE.Mesh(spoutGeo, shivlingMaterial);
+        spoutMesh.rotation.z = Math.PI / 2;
+        spoutMesh.position.set(-3, 0.2, 0); // Extending to left
+        baseGroup.add(spoutMesh);
+
+        baseGroup.position.y = 0.5;
+        scene.add(baseGroup);
+
+        // 3. The Markings (Tripundra) - Physically modeled
+        const markGroup = new THREE.Group();
+        const lineGeo = new THREE.BoxGeometry(1.2, 0.1, 0.05);
+        
+        for(let i=0; i<3; i++) {
+            const line = new THREE.Mesh(lineGeo, ashMaterial);
+            line.position.y = 0.2 - (i * 0.15);
+            // Curve the lines slightly to match cylinder (simplified here via scale/pos)
+            line.position.z = 1.15; // Stick out of lingam
+            markGroup.add(line);
+        }
+        // The Red Dot
+        const dotGeo = new THREE.SphereGeometry(0.12, 32, 32);
+        const dot = new THREE.Mesh(dotGeo, redDotMaterial);
+        dot.position.z = 1.18;
+        dot.position.y = 0.05;
+        markGroup.add(dot);
+
+        markGroup.position.y = 2.2; // Height on Lingam
+        scene.add(markGroup);
+
+        // 4. The Pot (Kalash)
+        const potGeo = new THREE.SphereGeometry(0.8, 32, 32);
+        const pot = new THREE.Mesh(potGeo, copperMaterial);
+        pot.scale.y = 0.8; // Flatten slightly
+        pot.position.set(0, 5.5, 0);
+        pot.castShadow = true;
+        scene.add(pot);
+
+        // 5. The Water Stream
+        const streamGeo = new THREE.CylinderGeometry(0.05, 0.02, 3.5, 8);
+        const stream = new THREE.Mesh(streamGeo, waterMaterial);
+        stream.position.set(0, 3.5, 0);
+        scene.add(stream);
+
+        // 6. Water Surface (The floor) with ripples
+        const floorGeo = new THREE.PlaneGeometry(30, 30, 64, 64);
+        const floorMat = new THREE.MeshStandardMaterial({
+            color: 0x0a0a0a,
+            roughness: 0.1,
+            metalness: 0.8,
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+
+        // --- LIGHTING (Crucial for the "Mood") ---
+
+        // 1. Ambient Light (Dark Blue/Purple for cosmic feel)
+        const ambientLight = new THREE.AmbientLight(0x202040, 1.5);
+        scene.add(ambientLight);
+
+        // 2. Spotlight (The Divine Light from top)
+        const spotLight = new THREE.SpotLight(0xffaa00, 100);
+        spotLight.position.set(2, 8, 2);
+        spotLight.angle = Math.PI / 6;
+        spotLight.penumbra = 0.5;
+        spotLight.decay = 1;
+        spotLight.distance = 0;
+        spotLight.castShadow = true;
+        spotLight.shadow.mapSize.width = 1024;
+        spotLight.shadow.mapSize.height = 1024;
+        scene.add(spotLight);
+
+        // 3. Rim Light (Blueish from behind)
+        const rimLight = new THREE.PointLight(0x0088ff, 50, 20);
+        rimLight.position.set(-5, 4, -5);
+        scene.add(rimLight);
+
+
+        // --- STARS / GALAXY BACKGROUND ---
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 2000;
+        const posArray = new Float32Array(starCount * 3);
+        
+        for(let i=0; i<starCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 40; // Spread 
+        }
+        
+        starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const starMat = new THREE.PointsMaterial({
+            size: 0.05,
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.8,
+        });
+        const starMesh = new THREE.Points(starGeo, starMat);
+        scene.add(starMesh);
+
+
+        // --- ANIMATION LOOP ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const time = clock.getElapsedTime();
+
+            // Rotate Stars slowly
+            starMesh.rotation.y = time * 0.05;
+
+            // Animate Water Stream (Simple scaling jitter)
+            stream.scale.x = 1 + Math.sin(time * 20) * 0.1;
+            stream.scale.z = 1 + Math.sin(time * 20) * 0.1;
+
+            // Make the water floor ripple (Visual trick)
+            floor.position.y = -0.5 + Math.sin(time * 2) * 0.02;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        document.getElementById('loading').style.display = 'none';
+        animate();
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
